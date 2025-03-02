@@ -1,0 +1,153 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  name          String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  predictions   Prediction[]
+  totalPoints   Int       @default(0)
+  correctPositions Int    @default(0) // Tiebreaker 1
+  teamPoints    Int       @default(0) // Tiebreaker 2
+  qualifyingPoints Int    @default(0) // Tiebreaker 3
+}
+
+model Race {
+  id            String    @id @default(uuid())
+  name          String
+  location      String
+  date          DateTime
+  isSprintWeekend Boolean @default(false)
+  hasRedFlag    Boolean?
+  status        RaceStatus @default(UPCOMING)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  predictions   Prediction[]
+  results       RaceResult[]
+}
+
+model Driver {
+  id            String    @id @default(uuid())
+  name          String
+  team          Team      @relation(fields: [teamId], references: [id])
+  teamId        String
+  number        Int
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  qualifyingResults QualifyingResult[]
+  raceResults   RaceResult[]
+  qualifyingPredictions QualifyingPrediction[]
+  racePredictions RacePrediction[]
+}
+
+model Team {
+  id            String    @id @default(uuid())
+  name          String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  drivers       Driver[]
+  teamPredictions TeamPrediction[]
+}
+
+model Prediction {
+  id            String    @id @default(uuid())
+  user          User      @relation(fields: [userId], references: [id])
+  userId        String
+  race          Race      @relation(fields: [raceId], references: [id])
+  raceId        String
+  redFlagPrediction Boolean @default(false)
+  points        Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  qualifyingPredictions QualifyingPrediction[]
+  racePredictions RacePrediction[]
+  teamPredictions TeamPrediction[]
+
+  @@unique([userId, raceId])
+}
+
+model QualifyingPrediction {
+  id            String    @id @default(uuid())
+  prediction    Prediction @relation(fields: [predictionId], references: [id])
+  predictionId  String
+  driver        Driver    @relation(fields: [driverId], references: [id])
+  driverId      String
+  position      Int
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([predictionId, position])
+  @@unique([predictionId, driverId])
+}
+
+model RacePrediction {
+  id            String    @id @default(uuid())
+  prediction    Prediction @relation(fields: [predictionId], references: [id])
+  predictionId  String
+  driver        Driver    @relation(fields: [driverId], references: [id])
+  driverId      String
+  position      Int
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([predictionId, position])
+  @@unique([predictionId, driverId])
+}
+
+model TeamPrediction {
+  id            String    @id @default(uuid())
+  prediction    Prediction @relation(fields: [predictionId], references: [id])
+  predictionId  String
+  team          Team      @relation(fields: [teamId], references: [id])
+  teamId        String
+  position      Int       // 1 for Best Team, 2 for Second Team
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([predictionId, position])
+}
+
+model QualifyingResult {
+  id            String    @id @default(uuid())
+  race          Race      @relation(fields: [raceId], references: [id])
+  raceId        String
+  driver        Driver    @relation(fields: [driverId], references: [id])
+  driverId      String
+  position      Int
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([raceId, position])
+  @@unique([raceId, driverId])
+}
+
+model RaceResult {
+  id            String    @id @default(uuid())
+  race          Race      @relation(fields: [raceId], references: [id])
+  raceId        String
+  driver        Driver    @relation(fields: [driverId], references: [id])
+  driverId      String
+  position      Int
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([raceId, position])
+  @@unique([raceId, driverId])
+}
+
+enum RaceStatus {
+  UPCOMING
+  QUALIFYING_COMPLETED
+  RACE_COMPLETED
+}
